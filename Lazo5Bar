@@ -1,0 +1,215 @@
+%% Mecanismos
+% Maria Andrea Lopez Alfonso 19098
+% Proyecto 1 Parte A
+
+%% Recoleccion de datos
+
+% Tipo de forma
+forma = input(['Elija una forma:\n1. Cuadrado\n2. Triángulo\n' ...
+    '3. Círculo\n4. UVG (2.5 * 4)\n5. Sin(x)\n6. M (7.5 * 4)\n']);
+
+% Medidas de eslabones
+a = input('\nEslabón a: ');
+b = input('Eslabón b: ');
+c = input('Eslabón c: ');
+d = input('Eslabón d: ');
+f = input('Eslabón f: ');
+
+%% UVG
+
+% U
+ejex_U = -3.75:0.05:-1.25;
+U = (1.1315 * ejex_U + 2.83).^4; % ecuación grado 4
+
+% V
+ejex_V = -1.25:0.05:1.25;
+V = abs(3.2 * ejex_V); % valor absoluto
+
+% G
+syms x y; % G
+G = solve((x - 2.5)^2 / 1.56 + (y - 2)^2 / 4 == 1, y); % elipse
+x = 1.25:0.05:2.5;
+G1 = abs(eval(G)); % media elipse izquierda
+rang2 = x;
+rang1 = 2.5:-0.05:1.25;
+
+G11 = zeros(1, size(G1, 2));
+G12 = zeros(1, size(G1, 2));
+for i = 1:size(G1, 2)
+    G11(i) = G1(1, i); % mitad inferior
+    G12(i) = G1(2, 27-i); % mitad superior
+end
+
+x = 2.5:0.05:3.75;
+G2 = abs(eval(G)); % media elipse derecha
+
+G21 = zeros(1,size(G2, 2));
+for i = 1:size(G2, 2)
+    G21(i) = G2(1, i); % mitad inferior
+end
+
+G3 = 2 * ones(1, 26); % constante = 2
+
+ejex_G = [rang1, rang2, x, 2.5];
+G = [G12, G11, G21, 2];
+
+%% Coordenadas P
+
+eslabones = [a b c d f];
+L = mean(eslabones) * 0.5; % medida escalada según eslabones de mecanismo
+
+switch forma
+    case 1 % cuadrado
+        Px = [-L L L -L -L];
+        Py = [0 0 L L 0];
+
+    case 2 % triangulo
+        Px = [-L/2 L/2 0 -L/2];
+        Py = [0 0 sqrt(3)*L/2 0];
+
+    case 3 % circulo
+        syms Px;
+        C = solve(Px^2 + (y - L/2)^2 == L^2/4, y);
+        Px = -L/2:0.1:L/2;
+        Py1 = abs(eval(C));
+        Py2 = Py1(1,:);
+        Py3 = Py1(2,:);
+        Py = [Py2, Py3];
+        Px = [Px, -Px];
+
+    case 4 % UVG
+        Px = [ejex_U ejex_V ejex_G];
+        Py = [U V G];
+        
+    case 5 % sin(x)
+        syms Px;
+        S = (L/2) * sin((18.84/L) * (-Px)) + L/2;
+        Px = -L/2:0.1:L/2;
+        Py = eval(S);
+
+    case 6 % M
+        Px = [-1.25 -1.25 0 1.25 1.25];
+        Py = [0 4 2.5 4 0];
+
+    otherwise
+        fprintf('Entrada incorrecta.')
+        return
+end
+
+Px = Px + f/2; % traslado a ejes globales
+Py = Py + mean(a+d) / 2;
+
+%% Lazo vectorial
+
+A = -2 * Px * a;
+B = 2 * Py * a;
+C = Px.^2 + Py.^2 + a^2 - b^2;
+
+dis1 = sqrt(4 * B.^2 - 4 * (C.^2 - A.^2));
+
+% Verificar si es mecanismo posible
+if isreal(dis1(1,2)) == 0
+    fprintf(['El mecanismo no puede graficar con las \n' ...
+        'medidas actuales de los eslabones'])
+    return
+end
+
+t11 = (2 * B + dis1)./ (2 * (C - A));
+t12 = (2 * B - dis1)./ (2 * (C - A));
+
+theta11 = 2 * atan(t11);
+theta12 = 2 * atan(t12);
+
+theta1 = theta11;
+
+theta3 = atan2(Px - a * cos(theta1), Py - a * sin(theta1)); % theta 3
+
+D = -2 * (Px - f) * d;
+E = 2 * Py * d;
+F = (Px - f).^2 + Py.^2 + d^2 - c^2;
+
+dis2 = sqrt(4 * E.^2 - 4 * (F.^2 - D.^2));
+
+% Verificar si es mecanismo posible
+if isreal(dis2) == 0
+    fprintf(['El mecanismo no puede graficar con las \n' ...
+        'medidas actuales de los eslabones'])
+    return
+end
+
+t21 = (2 * E + dis2)./ (2 * (F - D));
+t22 = (2 * E - dis2)./ (2 * (F - D));
+
+theta21 = 2 * atan(t21);
+theta22 = 2 * atan(t22);
+
+theta2 = theta22;
+
+theta4 = atan2(Px - f - d * cos(theta2), Py - d * sin(theta2)); % theta 4
+
+%% Coordenadas de puntos
+
+Ax = a * cos(theta1);
+Ay = a * sin(theta1);
+
+Bx = d * cos(theta2) + f;
+By = d * sin(theta2);
+
+%% Animacion de mecanismo
+
+figura = tiledlayout(2, 3);
+title(figura, 'Mecanismo de 5 barras', 'María Andrea López 19098');
+
+nexttile([2,2]);
+for cont = 1:size(Px,2)
+    cla
+
+    x1 = [0 Ax(cont)]; % eslabon a
+    y1 = [0 Ay(cont)]; 
+
+    x2 = [Ax(cont) Px(cont)]; % eslabon b
+    y2 = [Ay(cont) Py(cont)];
+
+    x4 = [f Bx(cont)]; % eslabon d
+    y4 = [0 By(cont)];
+
+    x3 = [Bx(cont) Px(cont)]; % eslabon c
+    y3 = [By(cont) Py(cont)];
+
+    x5 = [0 f]; % eslabon f
+    y5 = [0 0];
+
+    hold on
+    grid on
+    plot(x1, y1, '-or') % graficar eslabones
+    plot(x2, y2, '-og')
+    plot(x3, y3, '-oy')
+    plot(x4, y4, '-oc')
+    plot(x5, y5, '-om')
+
+    plot(Ax(1, 1:cont), Ay(1, 1:cont), '-b') % graficar recorrido de A
+    plot(Bx(1, 1:cont), By(1, 1:cont), '-b') % graficar recorrido de B
+    plot(Px(1, 1:cont), Py(1, 1:cont), '-k') % graficar recorrido de P
+
+    xlabel('x')
+    ylabel('y')
+    legend ('a', 'b', 'c', 'd', 'f', 'Puntos A y B');
+
+    drawnow;
+end
+
+% Angulo Theta 1
+nexttile
+largoejex = size(theta1);
+ejex = 1:1:largoejex(2);
+plot(ejex, rad2deg(theta1))
+title('Valores de \theta_1')
+ylabel('\theta_1 (°)')
+xlabel('Posiciones')
+
+% Angulo Theta 2
+nexttile
+plot(ejex, rad2deg(theta2))
+title('Valores de \theta_2')
+ylabel('\theta_2 (°)')
+xlabel('Posiciones')
